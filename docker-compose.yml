@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  clean_architecture:
+    container_name: clean_architecture
+    build:
+      context: .
+    ports:
+      - "1322:1322"
+    tty: true
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+
+  db:
+    container_name: clean_architecture_db
+    image: mysql:8.0.23
+    ports:
+      - "3307:3307"
+    restart: always
+    cap_add:
+      - SYS_NICE
+    environment:
+      MYSQL_USER: db_user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: clean_architecture
+    volumes:
+      - ./mysql:/var/lib/mysql
+    platform: linux/amd64
