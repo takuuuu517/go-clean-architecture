@@ -2,11 +2,12 @@ package server
 
 import (
 	"github.com/labstack/echo/v4"
+	"os"
 )
 
 func New() (*echo.Echo, error) {
 	e := echo.New()
-	entClient, err := newEntClient("root:password@tcp(clean_architecture_db:3306)/clean_architecture?parseTime=true")
+	entClient, err := newEntClient(os.Getenv("DATA_SOURCE"))
 	if err != nil {
 		return nil, err
 	}
