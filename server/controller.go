@@ -12,8 +12,10 @@ type controllers struct {
 }
 
 func newControllers(entClient *ent.Client) *controllers {
-	userRepo := repository.NewUserRepository(entClient)
-	userInteractor := useCase.NewUserInteractor(userRepo)
+	transaction := repository.NewTransactionManager(entClient)
+
+	userRepo := repository.NewUserRepository()
+	userInteractor := useCase.NewUserInteractor(userRepo, entClient, transaction)
 	userController := controller.NewUserController(userInteractor)
 
 	return &controllers{

@@ -3,19 +3,24 @@ package repository
 import (
 	"cleanArchitecture/domain"
 	"cleanArchitecture/ent"
+	"cleanArchitecture/useCase"
 	"context"
+	"errors"
 )
 
-type UserRepository struct {
-	entClient *ent.Client
+type UserRepository struct{}
+
+func NewUserRepository() *UserRepository {
+	return &UserRepository{}
 }
 
-func NewUserRepository(entClient *ent.Client) *UserRepository {
-	return &UserRepository{entClient: entClient}
-}
+func (r *UserRepository) GetAll(ctx context.Context, dbClient useCase.DbClient) ([]*domain.User, error) {
+	entClient, err := getEntClient(dbClient)
+	if err != nil {
+		return nil, err
+	}
 
-func (r *UserRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
-	entUsers, err := r.entClient.User.Query().All(ctx)
+	entUsers, err := entClient.User.Query().All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -23,8 +28,13 @@ func (r *UserRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
 	return entUsersToDomainUsers(entUsers), nil
 }
 
-func (r *UserRepository) GetById(ctx context.Context, id int) (*domain.User, error) {
-	entUser, err := r.entClient.User.Get(ctx, id)
+func (r *UserRepository) GetById(ctx context.Context, dbClient useCase.DbClient, id int) (*domain.User, error) {
+	entClient, err := getEntClient(dbClient)
+	if err != nil {
+		return nil, err
+	}
+
+	entUser, err := entClient.User.Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -32,8 +42,13 @@ func (r *UserRepository) GetById(ctx context.Context, id int) (*domain.User, err
 	return entUserToDomainUser(entUser), nil
 }
 
-func (r *UserRepository) Create(ctx context.Context, user *domain.User) (*domain.User, error) {
-	entUser, err := r.entClient.User.Create().
+func (r *UserRepository) Create(ctx context.Context, dbClient useCase.DbClient, user *domain.User) (*domain.User, error) {
+	entClient, err := getEntClient(dbClient)
+	if err != nil {
+		return nil, err
+	}
+
+	entUser, err := entClient.User.Create().
 		SetFirstName(user.FirstName).
 		SetLastName(user.LastName).
 		SetEmail(user.Email).
@@ -45,8 +60,13 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) (*domain
 	return entUserToDomainUser(entUser), nil
 }
 
-func (r *UserRepository) Update(ctx context.Context, user *domain.User) (*domain.User, error) {
-	entUser, err := r.entClient.User.UpdateOneID(user.ID).
+func (r *UserRepository) Update(ctx context.Context, dbClient useCase.DbClient, user *domain.User) (*domain.User, error) {
+	entClient, err := getEntClient(dbClient)
+	if err != nil {
+		return nil, err
+	}
+
+	entUser, err := entClient.User.UpdateOneID(user.ID).
 		SetFirstName(user.FirstName).
 		SetLastName(user.LastName).
 		SetEmail(user.Email).
@@ -58,8 +78,13 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) (*domain
 	return entUserToDomainUser(entUser), nil
 }
 
-func (r *UserRepository) Delete(ctx context.Context, id int) error {
-	return r.entClient.User.DeleteOneID(id).Exec(ctx)
+func (r *UserRepository) Delete(ctx context.Context, dbClient useCase.DbClient, id int) error {
+	entClient, err := getEntClient(dbClient)
+	if err != nil {
+		return err
+	}
+
+	return entClient.User.DeleteOneID(id).Exec(ctx)
 }
 
 func entUserToDomainUser(entUer *ent.User) *domain.User {
@@ -72,10 +97,24 @@ func entUserToDomainUser(entUer *ent.User) *domain.User {
 		UpdatedAt: entUer.UpdatedAt,
 	}
 }
+
 func entUsersToDomainUsers(entUsers []*ent.User) []*domain.User {
 	var domainUsers []*domain.User
 	for _, entUser := range entUsers {
 		domainUsers = append(domainUsers, entUserToDomainUser(entUser))
 	}
 	return domainUsers
+}
+
+func getEntClient(dbClient useCase.DbClient) (*ent.Client, error) {
+	entClient, ok := dbClient.(*ent.Client)
+	if !ok {
+		tx, ok := dbClient.(*ent.Tx)
+		if ok {
+			entClient = tx.Client()
+		} else {
+			return nil, errors.New("invalid dbClient type")
+		}
+	}
+	return entClient, nil
 }
